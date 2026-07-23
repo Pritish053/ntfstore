@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Reference template. install.sh generates the real file at
+     ~/Library/LaunchAgents/com.ntfstore.app.plist with __APP_BINARY__
+     replaced by the installed executable path. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ntfstore.app</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__APP_BINARY__</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>

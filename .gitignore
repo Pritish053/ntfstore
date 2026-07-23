@@ -1,0 +1,20 @@
+# Build output
+build/
+*.app/
+*.o
+*.dylib
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+
+# Distribution images
+dist/
