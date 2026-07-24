@@ -3,6 +3,16 @@
 All notable changes to NTFStore are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## [Unreleased]
+
+### Added
+- `docs/TROUBLESHOOTING.md`: new entry for **device-node drift** — the volume looks
+  mounted (`mount`/`df` normal) but every read fails with `Device not configured`,
+  because the drive was re-enumerated under a new node (e.g. `disk4s1` → `disk5s1`)
+  while ntfs-3g kept holding the old one. Covers the `pgrep` vs `diskutil list`
+  diagnosis, the unmount-and-remount fix, prevention (avoid bus-powered USB2 hubs,
+  disable disk sleep), and the cumulative `found.NNN` corruption this causes.
+
 ## [1.1.0] — 2026-07-23
 
 ### Added

@@ -115,6 +115,44 @@ A read-only (macOS built-in FSKit) mount looks like:
   `diskutil unmount force "/Volumes/NAME"; sudo pkill -f "volname=NAME"; sudo pkill -f "go-nfsv4 --volname NAME"`.
   **Best practice: use Eject in the menu before unplugging.**
 
+### Volume looks mounted, but every read fails with "Device not configured"
+- **Symptom:** `mount` shows a healthy-looking `fuse-t:/<name> … (nfs)` line and `df`
+  reports plausible size/usage, but any `ls` on the mountpoint fails with
+  `ls: fts_read: Device not configured`. `diskutil list external` shows the drive is
+  physically present and fine.
+- **Cause:** **device-node drift.** The drive dropped off the USB bus and macOS
+  re-enumerated it under a *new* node (e.g. `disk4s1` → `disk5s1`). Because ntfs-3g is a
+  userspace FUSE driver it gets no clean teardown, so it keeps holding the **old, dead**
+  node indefinitely. The mountpoint survives, the `df` figures are stale cache, and every
+  actual read hits a device that no longer exists.
+  *Distinct from the yank-without-eject case above:* here the drive never left, it just
+  changed node — so checks keyed on "is the volume gone?" won't catch it.
+- **Diagnose** — compare the node ntfs-3g holds against the node the drive actually has;
+  a mismatch confirms it:
+  ```bash
+  pgrep -fl ntfs-3g          # → /opt/homebrew/bin/ntfs-3g /dev/disk4s1 /Volumes/<name> …
+  diskutil list external     # → Windows_NTFS  <name>  …  disk5s1
+  ```
+- **Fix:** tear down the dead mount, then remount against the real node. Safe to force —
+  the mount has no live device left to flush:
+  ```bash
+  diskutil unmount force "/Volumes/<name>"
+  sudo -n /usr/local/sbin/ntfs-mount-rw.sh disk5s1   # use the node from diskutil
+  ```
+- **Prevention:** the drift is caused by the drive losing the bus, so remove the causes.
+  - **Don't run the drive through a bus-powered USB2 hub.** A 2.5" HDD pulls ~5 W at
+    spin-up, which such a hub browns out (check with
+    `ioreg -p IOUSB -w0 -l | grep -E '"USB Product Name"|"Device Speed"'`). Use a direct
+    port or a *powered* USB3 hub.
+  - **Stop aggressive sleep/spin-down** while the drive is attached:
+    `sudo pmset -a disksleep 0` and `sudo pmset -c sleep 0` (inspect with `pmset -g custom`).
+- **Note on cumulative damage:** each unclean detach leaves NTFS dirty, and NTFS gets no
+  journal replay on macOS — Windows `chkdsk` later dumps the orphaned fragments into
+  `found.000`, `found.001`, … at the volume root. A pile of those is a reliable sign this
+  has been happening repeatedly. The helper's `-o force` mounts dirty volumes anyway,
+  which keeps it invisible. Real repair needs `chkdsk /f` from Windows; ntfs-3g cannot
+  properly repair NTFS.
+
 ### Two mounts of the same drive (e.g. "Seagate Pritish" and "Seagate Pritish 1")
 - **Cause:** during the read-write swap, macOS FSKit mounts a **read-only duplicate** at
   a `<name> 1` path.
